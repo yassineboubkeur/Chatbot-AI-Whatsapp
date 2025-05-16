@@ -7,7 +7,18 @@ from .utils import validate_message, format_response
 
 main = Blueprint('main', __name__)
 
-@main.route('webhook', methods=['POST'])
+
+@main.route('/test-api', methods=['GET'])
+def test_api():
+    return jsonify(
+        {
+            "status": "success",
+            "message": "Welcome to the WhatApp Bot API"
+        }
+    )
+
+
+@main.route('/webhook', methods=['POST'])
 def webhook():
     data = request.get_json()
     msg = data['message']['text']
