@@ -15,4 +15,10 @@ def send_message(to, message):
         "content-type": "application/json"
     }
 
-    requests.post(url, json=payload, headers=headers)
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        print(">>> Exception while sending message: ", e)
+        return False
