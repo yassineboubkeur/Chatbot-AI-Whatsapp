@@ -4,8 +4,9 @@ import os
 from flask import Blueprint, request, jsonify
 """from .whatapp import send_message"""
 from .whatapp import send_message
+from .client import insert_client_data
 from .ai import open_ai_gpt
-from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio
+from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio, get_tenant_id
 from .product import query_product
 from .utils import validate_message, format_response
 
@@ -27,12 +28,17 @@ def webhook():
 
 
     data = request.get_json()
+    print(data)
+    display_phone_number = data['entry'][0]['changes'][0]['value']['metadata']['display_phone_number']
+    if 'contacts' in data['entry'][0]['changes'][0]['value']:
+        profile_name = data['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name']
+        tenant_id = get_tenant_id(display_phone_number)
+        client_phone_number = extract_client_phone(data)
 
     # TODO:  Add a function Take the Client Data & Insert it into the DB
+        insert_client_data(client_phone_number, profile_name, tenant_id)
 
     if is_audio_message(data):
-        phone_number = extract_client_phone(data)
-
         audio_data = extract_audio_data(data)
         if audio_data:
             bytesAudio = download_whatsapp_media(audio_data['id'])
@@ -46,8 +52,7 @@ def webhook():
             response_data = open_ai_gpt(msg)
             response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
             print(response_text)
-            return jsonify({"status": "success"})
-            send_message(phone_number, response_text)
+            send_message(display_phone_number, client_phone_number, response_text)
             print(response_text)
             return jsonify({"status": "success"})
 
