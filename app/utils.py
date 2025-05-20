@@ -3,9 +3,14 @@ import os
 from io import BytesIO
 import logging
 from openai import OpenAI
+from models.tenant import Tenant
 
 from app.ai import api_key
 from config import WHATSAPP_TOKEN, OPENAI_API_KEY
+
+
+def get_tenant_id(phone):
+    return Tenant.query.filter_by(phone_number=phone).first().id
 
 def transcribe_audio(bytesAudio):
 
