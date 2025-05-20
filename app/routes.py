@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify
 """from .whatapp import send_message"""
 from .whatapp import send_message
 from .ai import open_ai_gpt
-from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message
+from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio
 from .product import query_product
 from .utils import validate_message, format_response
 
@@ -27,40 +27,29 @@ def webhook():
 
 
     data = request.get_json()
+
+    # TODO:  Add a function Take the Client Data & Insert it into the DB
+
     if is_audio_message(data):
-        print(">>> Audio message received")
-        # Handle audio message here
-        # You can extract the audio file and process it as needed
-        # For now, just return success
-    return jsonify({"status": "success"})
-    phone_number = extract_client_phone(data)
-    msg = extract_whatsapp_message(data)
-    if msg:
-        response_data = open_ai_gpt(msg)
-        response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
-        print(response_text)
-        return jsonify({"status": "success"})
-        send_message(phone_number, response_text)
-        print(response_text)
-        return jsonify({"status": "success"})
-    """msg = data['message']['text']
-    sender = data['message']['from']
+        phone_number = extract_client_phone(data)
 
-    if not validate_message(msg):
-        return jsonify({"status": "Invalid Input"}), 400
-
-    if not is_question(msg):
-        send_message(sender, "Please ask questions about Products")
-        return jsonify({"status": "Success"})
-
-    product_name = extract_product(msg)
-    product = query_product(product_name)
-
-    if not product:
-        send_message(sender, "Sorry no product found")
+        audio_data = extract_audio_data(data)
+        if audio_data:
+            bytesAudio = download_whatsapp_media(audio_data['id'])
+            dataText = transcribe_audio(bytesAudio)
+            response_data = open_ai_gpt(dataText)
+            print(response_data) # TODO: send the Message to Client using his phone number
+            return jsonify({"status": "success"}) # TODO: for test purpose
     else:
-        response = format_response(product)
-        send_message(sender, response)"""
+        msg = extract_whatsapp_message(data)
+        if msg:
+            response_data = open_ai_gpt(msg)
+            response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
+            print(response_text)
+            return jsonify({"status": "success"})
+            send_message(phone_number, response_text)
+            print(response_text)
+            return jsonify({"status": "success"})
 
     return jsonify({"status": "success"})
 
