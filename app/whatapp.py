@@ -18,6 +18,8 @@ def extract_client_access_token(phone):
 
 def send_message(sender, to, message):
     TENANT_ID, WHATSAPP_TOKEN, PHONE_NUMBER_ID =  extract_client_access_token(sender)
+
+    print(TENANT_ID, WHATSAPP_TOKEN, PHONE_NUMBER_ID)
     url  = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
 
     payload = {
