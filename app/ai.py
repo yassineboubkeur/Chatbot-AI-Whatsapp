@@ -4,21 +4,28 @@ import json
 
 from sqlalchemy.sql.coercions import expect
 
-api_key = os.getenv("GEMENI_AI_API_KEY")
+api_key = os.getenv("OPEN_AI_API_KEY")
 
-def is_question(message):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+def open_ai_gpt(message):
+    url = "https://api.openai.com/v1/chat/completions"
 
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
     }
 
     data = {
-        "contents": [{
-            "parts": [{
-                "text": f"'{message}'"
-            }]
-        }]
+        "model": "gpt-3.5-turbo",  # You can change this to another model like "gpt-4o" if needed
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant, response with short, clear, direct to the point answer."
+            },
+            {
+                "role": "user",
+                "content": message
+            }
+        ]
     }
 
     try:
@@ -29,5 +36,6 @@ def is_question(message):
     except requests.exceptions.RequestException as e:
         print(">>> Exception while checking if message is a question: ", e)
         return False
+
 
 
