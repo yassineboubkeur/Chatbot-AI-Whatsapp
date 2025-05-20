@@ -20,7 +20,6 @@ def webhook():
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
 
-        # You can set a verification token in your .env file
         if mode == 'subscribe' and token == os.getenv("WHATSAPP_VERIFY_TOKEN", "default_verify_token"):
             return challenge
         else:
@@ -35,26 +34,27 @@ def webhook():
         tenant_id = get_tenant_id(display_phone_number)
         client_phone_number = extract_client_phone(data)
 
-    # TODO:  Add a function Take the Client Data & Insert it into the DB
-        insert_client_data(client_phone_number, profile_name, tenant_id)
+        insert_client_data(client_phone_number, profile_name, tenant_id) #TODO: handle Errors Here
 
-    if is_audio_message(data):
-        audio_data = extract_audio_data(data)
-        if audio_data:
-            bytesAudio = download_whatsapp_media(audio_data['id'])
-            dataText = transcribe_audio(bytesAudio)
-            response_data = open_ai_gpt(dataText)
-            print(response_data) # TODO: send the Message to Client using his phone number
-            return jsonify({"status": "success"}) # TODO: for test purpose
-    else:
-        msg = extract_whatsapp_message(data)
-        if msg:
-            response_data = open_ai_gpt(msg)
-            response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
-            print(response_text)
-            send_message(display_phone_number, client_phone_number, response_text)
-            print(response_text)
-            return jsonify({"status": "success"})
+        if is_audio_message(data):
+            audio_data = extract_audio_data(data)
+            if audio_data:
+                bytesAudio = download_whatsapp_media(audio_data['id'])
+                dataText = transcribe_audio(bytesAudio)
+                response_data = open_ai_gpt(dataText)
+                ai_answer = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
+                send_message(display_phone_number, client_phone_number, ai_answer)
+                print(response_data) # TODO: send the Message to Client using his phone number
+                return jsonify({"status": "success"})
+        else:
+            msg = extract_whatsapp_message(data)
+            if msg:
+                response_data = open_ai_gpt(msg)
+                response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
+                print(response_text)
+                send_message(display_phone_number, client_phone_number, response_text)
+                print(response_text)
+                return jsonify({"status": "success"})
 
     return jsonify({"status": "success"})
 
