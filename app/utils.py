@@ -5,6 +5,20 @@ def validate_message(msg):
         return False
     return True
 
+def is_audio_message(data):
+    try:
+        if 'entry' in data and data['entry']:
+            for entry in data['entry']:
+                if 'changes' in entry and entry['changes']:
+                    for change in entry['changes']:
+                        if 'value' in change and 'messages' in change['value']:
+                            for message in change['value']['messages']:
+                                if message.get('type') == 'audio':
+                                    return True
+        return False
+    except Exception:
+        # If any error occurs during extraction, assume it's not an audio message
+        return False
 
 def extract_client_phone(data):
     """Extract the client's phone number from WhatsApp webhook data"""
