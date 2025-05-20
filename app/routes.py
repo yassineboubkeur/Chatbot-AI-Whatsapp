@@ -4,24 +4,13 @@ import os
 from flask import Blueprint, request, jsonify
 """from .whatapp import send_message"""
 from .whatapp import send_message
-from .ai import is_question
-from .utils import extract_whatsapp_message, extract_client_phone
+from .ai import open_ai_gpt
+from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message
 from .product import query_product
 from .utils import validate_message, format_response
 
 
 main = Blueprint('main', __name__)
-
-
-@main.route('/test-api', methods=['GET'])
-def test_api():
-    return jsonify(
-        {
-            "status": "success",
-            "message": "Welcome to the WhatApp Bot API"
-        }
-    )
-
 
 @main.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -38,11 +27,19 @@ def webhook():
 
 
     data = request.get_json()
+    if is_audio_message(data):
+        print(">>> Audio message received")
+        # Handle audio message here
+        # You can extract the audio file and process it as needed
+        # For now, just return success
+    return jsonify({"status": "success"})
     phone_number = extract_client_phone(data)
     msg = extract_whatsapp_message(data)
     if msg:
-        response_data = is_question(msg)
-        response_text = response_data['candidates'][0]['content']['parts'][0]['text']
+        response_data = open_ai_gpt(msg)
+        response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
+        print(response_text)
+        return jsonify({"status": "success"})
         send_message(phone_number, response_text)
         print(response_text)
         return jsonify({"status": "success"})
