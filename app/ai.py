@@ -40,3 +40,7 @@ def open_ai_gpt(message):
 
 
 
+def context_memory(message):
+    # TODO: handle the AI Context Memory First with Flask-Session
+    # TODO: switch to Redis in the Future for better Performance
+    return True
