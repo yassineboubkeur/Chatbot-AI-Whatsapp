@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify
 """from .whatapp import send_message"""
 from .whatapp import send_message
 from .client import insert_client_data
-from .ai import open_ai_gpt
+from .ai import open_ai_gpt, get_embedding, classify_intent
 from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio, get_tenant_id
 from .product import query_product
 from .utils import validate_message, format_response
@@ -27,7 +27,7 @@ def webhook():
 
 
     data = request.get_json()
-    print(data)
+
     display_phone_number = data['entry'][0]['changes'][0]['value']['metadata']['display_phone_number']
     if 'contacts' in data['entry'][0]['changes'][0]['value']:
         profile_name = data['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name']
@@ -49,7 +49,8 @@ def webhook():
         else:
             msg = extract_whatsapp_message(data)
             if msg:
-                response_data = open_ai_gpt(msg)
+                question_type = classify_intent(msg)
+                response_data = open_ai_gpt(msg, question_type)
                 response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
                 print(response_text)
                 send_message(display_phone_number, client_phone_number, response_text)
