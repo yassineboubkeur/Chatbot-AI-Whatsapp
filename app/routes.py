@@ -7,8 +7,6 @@ from .whatapp import send_message
 from .client import insert_client_data
 from .ai import open_ai_gpt, get_embedding, classify_intent
 from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio, get_tenant_id
-from .product import query_product
-from .utils import validate_message, format_response
 
 
 main = Blueprint('main', __name__)
@@ -41,7 +39,8 @@ def webhook():
             if audio_data:
                 bytesAudio = download_whatsapp_media(audio_data['id'])
                 dataText = transcribe_audio(bytesAudio)
-                response_data = open_ai_gpt(dataText)
+                question_type = classify_intent(dataText)
+                response_data = open_ai_gpt(dataText, question_type, tenant_id)
                 ai_answer = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
                 send_message(display_phone_number, client_phone_number, ai_answer)
                 print(response_data) # TODO: send the Message to Client using his phone number
@@ -50,7 +49,7 @@ def webhook():
             msg = extract_whatsapp_message(data)
             if msg:
                 question_type = classify_intent(msg)
-                response_data = open_ai_gpt(msg, question_type)
+                response_data = open_ai_gpt(msg, question_type, tenant_id)
                 response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
                 print(response_text)
                 send_message(display_phone_number, client_phone_number, response_text)
