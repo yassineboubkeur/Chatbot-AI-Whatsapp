@@ -2,17 +2,19 @@ import requests
 import os
 import json
 from app import db
+from flask import session
 
 from config import OPENAI_API_KEY
 
 api_key = os.getenv("OPEN_AI_API_KEY")
 
-def open_ai_gpt(message, question_type=None, tenant_id=None):
+def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
 
     # TODO : User message should be embedded  FUNCTION => get_embedding
     # TODO : We should Classify the question type FUNCTION => classify_intent
     # TODO : based on the question type we should search for the product or service or general , the Search will be done using the embedding FUNCTION => search_products_by_embedding or search_services_by_embedding
-    # TODO : We should use the context memory to store the user message and the AI response FUNCTION => context_memory
+
+    messages = context_memory(client_phone, {"role": "user", "content": message})
 
     url = "https://api.openai.com/v1/chat/completions"
 
@@ -21,35 +23,70 @@ def open_ai_gpt(message, question_type=None, tenant_id=None):
         "Authorization": f"Bearer {api_key}"
     }
 
+    print(messages)
     data = {
-        "model": "gpt-3.5-turbo",  # You can change this to another model like "gpt-4o" if needed
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a helpful assistant, response with short, clear, direct to the point answer."
-            },
-            {
-                "role": "user",
-                "content": message
-            }
-        ]
+        "model": "gpt-3.5-turbo",
+        "messages": messages
     }
 
     try:
         response = requests.post(url, headers=headers, data=json.dumps(data))
         response.raise_for_status()
         response_data = response.json()
+
+        # Extract AI response
+        ai_response = response_data['choices'][0]['message']['content']
+
+        # Store the AI response in context memory
+        context_memory(client_phone, {"role": "assistant", "content": ai_response})
+
         return response_data
     except requests.exceptions.RequestException as e:
         print(">>> Exception while checking if message is a question: ", e)
         return False
 
+# TODO: BUG HERE the Session ID is Changing between requests , which is not expected
+# TODO: I need to Setup Redis Database to manage the Context memory
+def context_memory(client_phone, message):
+    from flask import session
 
+    # Debug: Print session ID to see if it's changing between requests
+    print(f"Session ID: {session.sid if hasattr(session, 'sid') else id(session)}")
 
-def context_memory(message):
-    # TODO: handle the AI Context Memory First with Flask-Session
-    # TODO: switch to Redis in the Future for better Performance
-    return True
+    # Initialize conversation if it doesn't exist
+    if 'conversation' not in session:
+        print("Creating new conversation in session")
+        session['conversation'] = []
+    else:
+        print(f"Existing conversation found with {len(session['conversation'])} messages")
+
+    # Add the new message
+    session['conversation'].append(message)
+    print(f"Added message. Conversation length: {len(session['conversation'])}")
+
+    # Limit conversation size
+    if len(session['conversation']) > 50:
+        session['conversation'].pop(0)
+        print("Removed oldest message")
+
+    # Create complete context
+    complete_context = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant, response with short, clear, direct to the point answer."
+        }
+    ]
+
+    # Add conversation history
+    complete_context.extend(session['conversation'])
+
+    # Force session persistence - CRITICAL!
+    session.modified = True
+
+    # Debug: Print the actual messages to verify
+    print(f"Complete context: {complete_context}")
+
+    return complete_context
 
 
 def get_embedding(text):
