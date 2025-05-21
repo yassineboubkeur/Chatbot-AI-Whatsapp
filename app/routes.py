@@ -40,7 +40,7 @@ def webhook():
                 bytesAudio = download_whatsapp_media(audio_data['id'])
                 dataText = transcribe_audio(bytesAudio)
                 question_type = classify_intent(dataText)
-                response_data = open_ai_gpt(dataText, question_type, tenant_id)
+                response_data = open_ai_gpt(dataText, client_phone_number, question_type, tenant_id)
                 ai_answer = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
                 send_message(display_phone_number, client_phone_number, ai_answer)
                 print(response_data) # TODO: send the Message to Client using his phone number
@@ -49,7 +49,7 @@ def webhook():
             msg = extract_whatsapp_message(data)
             if msg:
                 question_type = classify_intent(msg)
-                response_data = open_ai_gpt(msg, question_type, tenant_id)
+                response_data = open_ai_gpt(msg, client_phone_number, question_type, tenant_id)
                 response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
                 print(response_text)
                 send_message(display_phone_number, client_phone_number, response_text)
