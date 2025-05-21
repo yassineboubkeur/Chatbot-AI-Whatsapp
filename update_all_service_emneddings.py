@@ -5,7 +5,6 @@ from models import Service
 
 
 def update_all_service_embeddings():
-    print("Hello")
     app = create_app()
     with app.app_context():
         services = Service.query.all()
