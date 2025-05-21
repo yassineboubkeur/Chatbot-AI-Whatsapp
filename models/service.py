@@ -17,19 +17,16 @@ class Service(db.Model):
 
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
 
-
-    def generate_and_save_embedding(self):
+    def generate_embedding(self):
         text = f"Offer: {self.name} {self.description} {self.price} {self.periode}"
-
         client = OpenAI(api_key=OPENAI_API_KEY)
-
-        response = client.embeddings.create(
-            input=text,
-            model="text-embedding-ada-002",
-        )
-
-        self.embedding = response.data[0].embedding
-
-        db.session.commit()
-
+        try:
+            response = client.embeddings.create(
+                input=text,
+                model="text-embedding-ada-002",
+            )
+            self.embedding = response.data[0].embedding
+        except Exception as e:
+            # LOGGING
+            raise e
         return self.embedding
