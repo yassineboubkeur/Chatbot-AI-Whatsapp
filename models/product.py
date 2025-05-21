@@ -1,5 +1,5 @@
 from app import db
-
+from pgvector.sqlalchemy import VECTOR
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -11,3 +11,5 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
+
+    embedding = db.Column(VECTOR(1536), nullable=True)
