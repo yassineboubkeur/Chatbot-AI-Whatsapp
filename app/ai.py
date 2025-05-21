@@ -7,7 +7,13 @@ from config import OPENAI_API_KEY
 
 api_key = os.getenv("OPEN_AI_API_KEY")
 
-def open_ai_gpt(message, question_type=None):
+def open_ai_gpt(message, question_type=None, tenant_id=None):
+
+    # TODO : User message should be embedded  FUNCTION => get_embedding
+    # TODO : We should Classify the question type FUNCTION => classify_intent
+    # TODO : based on the question type we should search for the product or service or general , the Search will be done using the embedding FUNCTION => search_products_by_embedding or search_services_by_embedding
+    # TODO : We should use the context memory to store the user message and the AI response FUNCTION => context_memory
+
     url = "https://api.openai.com/v1/chat/completions"
 
     headers = {
@@ -15,7 +21,6 @@ def open_ai_gpt(message, question_type=None):
         "Authorization": f"Bearer {api_key}"
     }
 
-    # TODO: handle the AI Context Memory First with Flask-Session, in the Future we will migrate to Redis
     data = {
         "model": "gpt-3.5-turbo",  # You can change this to another model like "gpt-4o" if needed
         "messages": [
