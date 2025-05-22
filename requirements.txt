@@ -25,3 +25,4 @@ openai~=1.79.0
 Flask-Migrate~=4.1.0
 pgvector~=0.4.1
 alembic~=1.15.2
+redis~=6.1.0
