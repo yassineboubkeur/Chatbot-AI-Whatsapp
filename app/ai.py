@@ -16,10 +16,6 @@ api_key = os.getenv("OPEN_AI_API_KEY")
 
 def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
 
-    # TODO : User message should be embedded  FUNCTION => get_embedding
-    # TODO : We should Classify the question type FUNCTION => classify_intent
-    # TODO : based on the question type we should search for the product or service or general , the Search will be done using the embedding FUNCTION => search_products_by_embedding or search_services_by_embedding
-
     embedding = get_embedding(message)
 
     if not question_type:
@@ -31,7 +27,16 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
         if question_type == 'service':
             services = search_services_by_embedding(embedding, tenant_id)
             if services:
-                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} {s.periode}" for s in services)
+                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} DH {s.periode}" for s in services)
+        if question_type == 'product':
+            products = search_products_by_embedding(embedding, tenant_id)
+            if products:
+                # TODO: add the Correct Products to context
+                context_info = "Relevant Products: \n" + "\n".join(f"- {p.name}: {p.description} {p.price} {p.periode}" for p in products)
+        if question_type == 'general':
+            # TODO: tenant information must embbedded in the database
+            tenant_info = get_tenant_information(tenant_id)
+            context_info = f"Tenant Information: \n" + "\n".join(f"- we are {t.name}, we are in {t.address}{t.city}, this Our mail address {t.email} if you want to call us this is our phone {t.phone_number}" for t in tenant_info)
     user_content = message
     if context_info:
         user_content = f"User question: {message}\n\nContext information (not visible to user):{context_info}"
@@ -185,5 +190,15 @@ def search_services_by_embedding(query_embedding, tenant_id, limit=3):
         .filter(Service.tenant_id == tenant_id)
         .order_by(Service.embedding.op('<=>')(query_embedding))
         .limit(limit)
+        .all()
+    )
+
+def get_tenant_information(tenant_id):
+    """Get tenant information."""
+    from models import TenantInfo
+
+    return (
+        db.session.query(TenantInfo)
+        .filter(TenantInfo.tenant_id == tenant_id)
         .all()
     )
