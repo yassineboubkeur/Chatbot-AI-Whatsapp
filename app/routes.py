@@ -4,24 +4,12 @@ import os
 from flask import Blueprint, request, jsonify
 """from .whatapp import send_message"""
 from .whatapp import send_message
-from .ai import is_question
-from .utils import extract_whatsapp_message, extract_client_phone
-from .product import query_product
-from .utils import validate_message, format_response
+from .client import insert_client_data
+from .ai import open_ai_gpt, get_embedding, classify_intent
+from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio, get_tenant_id
 
 
 main = Blueprint('main', __name__)
-
-
-@main.route('/test-api', methods=['GET'])
-def test_api():
-    return jsonify(
-        {
-            "status": "success",
-            "message": "Welcome to the WhatApp Bot API"
-        }
-    )
-
 
 @main.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -30,7 +18,6 @@ def webhook():
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
 
-        # You can set a verification token in your .env file
         if mode == 'subscribe' and token == os.getenv("WHATSAPP_VERIFY_TOKEN", "default_verify_token"):
             return challenge
         else:
@@ -38,32 +25,36 @@ def webhook():
 
 
     data = request.get_json()
-    phone_number = extract_client_phone(data)
-    msg = extract_whatsapp_message(data)
-    if msg:
-        response_data = is_question(msg)
-        response_text = response_data['candidates'][0]['content']['parts'][0]['text']
-        send_message(phone_number, response_text)
-        print(response_text)
-        return jsonify({"status": "success"})
-    """msg = data['message']['text']
-    sender = data['message']['from']
 
-    if not validate_message(msg):
-        return jsonify({"status": "Invalid Input"}), 400
+    display_phone_number = data['entry'][0]['changes'][0]['value']['metadata']['display_phone_number']
+    if 'contacts' in data['entry'][0]['changes'][0]['value']:
+        profile_name = data['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name']
+        tenant_id = get_tenant_id(display_phone_number)
+        client_phone_number = extract_client_phone(data)
 
-    if not is_question(msg):
-        send_message(sender, "Please ask questions about Products")
-        return jsonify({"status": "Success"})
+        insert_client_data(client_phone_number, profile_name, tenant_id) #TODO: handle Errors Here
 
-    product_name = extract_product(msg)
-    product = query_product(product_name)
-
-    if not product:
-        send_message(sender, "Sorry no product found")
-    else:
-        response = format_response(product)
-        send_message(sender, response)"""
+        if is_audio_message(data):
+            audio_data = extract_audio_data(data)
+            if audio_data:
+                bytesAudio = download_whatsapp_media(audio_data['id'])
+                dataText = transcribe_audio(bytesAudio)
+                question_type = classify_intent(dataText)
+                response_data = open_ai_gpt(dataText, client_phone_number, question_type, tenant_id)
+                ai_answer = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
+                send_message(display_phone_number, client_phone_number, ai_answer)
+                print(response_data) # TODO: send the Message to Client using his phone number
+                return jsonify({"status": "success"})
+        else:
+            msg = extract_whatsapp_message(data)
+            if msg:
+                question_type = classify_intent(msg)
+                response_data = open_ai_gpt(msg, client_phone_number, question_type, tenant_id)
+                response_text = response_data["choices"][0]["message"]["content"] if response_data and "choices" in response_data else ""
+                print(response_text)
+                send_message(display_phone_number, client_phone_number, response_text)
+                print(response_text)
+                return jsonify({"status": "success"})
 
     return jsonify({"status": "success"})
 

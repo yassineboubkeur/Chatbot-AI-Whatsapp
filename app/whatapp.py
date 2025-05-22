@@ -1,7 +1,25 @@
 import requests
-from config import WHATSAPP_TOKEN, PHONE_NUMBER_ID
+from models.tenant import Tenant
 
-def send_message(to, message):
+
+
+def extract_client_access_token(phone):
+    tenantObj = Tenant.query.filter_by(phone_number=phone).first()
+    if tenantObj:
+        whatsapp_token = tenantObj.whatsapp_token
+        phone_number_id = tenantObj.phone_number_id
+        tenant_id = tenantObj.id
+    else:
+        whatsapp_token = None
+        phone_number_id = None
+        tenant_id = None
+    return tenant_id, whatsapp_token, phone_number_id
+
+
+def send_message(sender, to, message):
+    TENANT_ID, WHATSAPP_TOKEN, PHONE_NUMBER_ID =  extract_client_access_token(sender)
+
+    print(TENANT_ID, WHATSAPP_TOKEN, PHONE_NUMBER_ID)
     url  = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
 
     payload = {
@@ -21,4 +39,6 @@ def send_message(to, message):
         return True
     except requests.exceptions.RequestException as e:
         print(">>> Exception while sending message: ", e)
+        if hasattr(e, 'response') and e.response:
+            print(">>> Response: ", e.response.text)
         return False
