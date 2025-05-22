@@ -1,10 +1,16 @@
+from os import abort
+
 import requests
 import os
 import json
+
+from flask import jsonify
+
 from app import db
-from flask import session
+from app.utils import extract_whatsapp_message
 
 from config import OPENAI_API_KEY
+from .redis_config import CONVERSATION_MAX_LENGTH
 
 api_key = os.getenv("OPEN_AI_API_KEY")
 
@@ -14,7 +20,23 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
     # TODO : We should Classify the question type FUNCTION => classify_intent
     # TODO : based on the question type we should search for the product or service or general , the Search will be done using the embedding FUNCTION => search_products_by_embedding or search_services_by_embedding
 
-    messages = context_memory(client_phone, {"role": "user", "content": message})
+    embedding = get_embedding(message)
+
+    if not question_type:
+        question_type = classify_intent(message)
+
+    print(f"Question Type: {question_type}")
+    context_info = ""
+    if embedding and tenant_id:
+        if question_type == 'service':
+            services = search_services_by_embedding(embedding, tenant_id)
+            if services:
+                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.periode}" for s in services)
+    user_content = message
+    if context_info:
+        user_content = f"User question: {message}\n\nContext information (not visible to user):{context_info}"
+
+    messages = context_memory(client_phone, {"role": "user", "content": user_content}, tenant_id=tenant_id)
 
     url = "https://api.openai.com/v1/chat/completions"
 
@@ -38,38 +60,32 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
         ai_response = response_data['choices'][0]['message']['content']
 
         # Store the AI response in context memory
-        context_memory(client_phone, {"role": "assistant", "content": ai_response})
+        context_memory(client_phone, {"role": "assistant", "content": ai_response}, tenant_id=tenant_id)
 
         return response_data
     except requests.exceptions.RequestException as e:
         print(">>> Exception while checking if message is a question: ", e)
-        return False
+        return None
 
-# TODO: BUG HERE the Session ID is Changing between requests , which is not expected
-# TODO: I need to Setup Redis Database to manage the Context memory
-def context_memory(client_phone, message):
-    from flask import session
 
-    # Debug: Print session ID to see if it's changing between requests
-    print(f"Session ID: {session.sid if hasattr(session, 'sid') else id(session)}")
+def context_memory(client_phone, message=None, tenant_id=None):
+    from .redis_client import get_conversation, save_conversation
 
-    # Initialize conversation if it doesn't exist
-    if 'conversation' not in session:
-        print("Creating new conversation in session")
-        session['conversation'] = []
-    else:
-        print(f"Existing conversation found with {len(session['conversation'])} messages")
+    if not tenant_id or not client_phone:
+        print("Tenant ID or Client Phone not found in context_memory function")
+        return []
 
-    # Add the new message
-    session['conversation'].append(message)
-    print(f"Added message. Conversation length: {len(session['conversation'])}")
+    conversation = get_conversation(tenant_id, client_phone)
 
-    # Limit conversation size
-    if len(session['conversation']) > 50:
-        session['conversation'].pop(0)
-        print("Removed oldest message")
+    if message:
+        conversation.append(message)
 
-    # Create complete context
+        while len(conversation) > CONVERSATION_MAX_LENGTH:
+            conversation.pop(0)
+
+
+        save_conversation(tenant_id, client_phone, conversation)
+
     complete_context = [
         {
             "role": "system",
@@ -77,14 +93,7 @@ def context_memory(client_phone, message):
         }
     ]
 
-    # Add conversation history
-    complete_context.extend(session['conversation'])
-
-    # Force session persistence - CRITICAL!
-    session.modified = True
-
-    # Debug: Print the actual messages to verify
-    print(f"Complete context: {complete_context}")
+    complete_context.extend(conversation)
 
     return complete_context
 
