@@ -5,7 +5,7 @@ import os
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = int(os.getenv("REDIS_PORT"))
 REDIS_DB = int(os.getenv("REDIS_DB"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or None
 REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
 
 
