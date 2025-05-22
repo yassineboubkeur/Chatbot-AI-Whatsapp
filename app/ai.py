@@ -31,7 +31,7 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
         if question_type == 'service':
             services = search_services_by_embedding(embedding, tenant_id)
             if services:
-                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.periode}" for s in services)
+                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} {s.periode}" for s in services)
     user_content = message
     if context_info:
         user_content = f"User question: {message}\n\nContext information (not visible to user):{context_info}"
