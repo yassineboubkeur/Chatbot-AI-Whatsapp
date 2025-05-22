@@ -5,7 +5,6 @@ import logging
 from openai import OpenAI
 from models.tenant import Tenant
 
-from app.ai import api_key
 from config import WHATSAPP_TOKEN, OPENAI_API_KEY
 
 
