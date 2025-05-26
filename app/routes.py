@@ -87,6 +87,6 @@ def generate_and_send_response(message_text, display_phone_number, client_phone_
         extract_client_info_with_ai(message_text, client_phone_number, tenant_id)
         extract_client_info_with_ai(response_text, client_phone_number, tenant_id)
 
-        #send_message(display_phone_number, client_phone_number, response_text)
+        send_message(display_phone_number, client_phone_number, response_text)
 
     return jsonify({"status": "success"})

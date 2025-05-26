@@ -23,7 +23,6 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
     if not question_type:
         question_type = classify_intent(message)
 
-    print(f"Question Type: {question_type}")
     context_info = ""
     if embedding and tenant_id:
         if question_type == 'service':
@@ -96,7 +95,7 @@ def context_memory(client_phone, message=None, tenant_id=None):
     complete_context = [
         {
             "role": "system",
-            "content": "You are an expert marketing consultant representing this business. Your goals are to:\n1. Identify client needs and match them to our products/services\n2. Overcome objections professionally (e.g., if price concerns arise, suggest more affordable alternatives)\n3. Actively sell and recommend our offerings based on client interests\n4. IMPORTANT: Do **not** request the client's personal information (name, email, the offer they like) until they show clear interest in a specific product or service\n5. CRITICAL: Once interest is shown, collect the client’s full name, email address and the offer they want\n6. Then identify and confirm which specific pack/service the client wants to purchase\n7. Create detailed lead information including: client name, email, and selected pack/service\n8. Answer only business-related questions and politely redirect other inquiries\n9. Communicate in the same language as the client (French, Arabic, English, or Moroccan Darija)\n10. Analyze sentiment to provide personalized responses\n11. If the conversation stalls, ask relevant questions based on previous context\n\nMake responses concise, professional and sales-focused. Always guide the conversation toward understanding client needs first, and only collect personal info after they express interest in a product or service."
+            "content": "You are an expert marketing consultant representing this business. Your goals are to:\n1. Identify client needs and match them to our products/services\n2. Overcome objections professionally (e.g., if price concerns arise, suggest more affordable alternatives)\n3. Actively sell and recommend our offerings based on client interests\n4. IMPORTANT: Do **not** request the client's personal information (name, email, the offer they like) until they show clear interest in a specific product or service\n5. CRITICAL: Once interest is shown, collect the client’s full name, email address and the offer they want\n6. Then identify and confirm which specific pack/service the client wants to purchase\n7. Create detailed lead information including: client name, email, and selected pack/service\n8. Answer only business-related questions and politely redirect other inquiries by saying: 'That’s outside my area. I can help you with our services instead.'\n9. Communicate in the same language as the client (French, Arabic, English, or Moroccan Darija)\n10. Analyze sentiment to provide personalized responses\n11. If the conversation stalls or gets off-topic, ask relevant questions to bring focus back\n12. NEVER answer questions unrelated to our business (e.g., AI, politics, programming, personal advice). Politely decline and refocus on business.\n\nMake responses concise, professional and sales-focused. Always guide the conversation toward understanding client needs first, and only collect personal info after they express interest in a product or service."
         }
     ]
 
@@ -132,7 +131,7 @@ def get_embedding(text):
         print(">>> Exception while getting embedding: ", {str(e)})
         return None
 
-
+# TODO: FIX the BUG , THE AI EXTRACTION IS NOT WORKING PROPERLY SOMETIMES IT WORKS AND SOMETIMES IT DOES NOT WORK
 def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, client_id=None):
     from models import Order
 
@@ -186,9 +185,7 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
         client_data['tenant_id'] = tenant_id
         client_data['client_id'] = Client.get_client_id_from_phone(client_phone)
 
-        print("Hello")
         if client_data['client_name'] and client_data['client_email'] and client_data['pack_name']:
-            print("From Inside")
             order = Order.insert_from_ai_extraction(client_data)
             if order:
                 return client_data
