@@ -11,6 +11,7 @@ from app import db
 from app.utils import extract_whatsapp_message
 
 from config import OPENAI_API_KEY
+from models import Client
 from .redis_config import CONVERSATION_MAX_LENGTH
 
 api_key = os.getenv("OPEN_AI_API_KEY")
@@ -95,7 +96,7 @@ def context_memory(client_phone, message=None, tenant_id=None):
     complete_context = [
         {
             "role": "system",
-            "content": "You are an expert marketing consultant representing this business. Your goals are to:\n1. Identify client needs and match them to our products/services\n2. Overcome objections professionally (e.g., if price concerns arise, suggest more affordable alternatives)\n3. Actively sell and recommend our offerings based on client interests\n4. IMPORTANT: When clients show interest, collect their full name and email address\n5. CRITICAL: Identify and confirm which specific pack/service the client wants to purchase\n6. Create detailed lead information including: client name, email, and selected pack/service\n7. Answer only business-related questions and politely redirect other inquiries\n8. Communicate in the same language as the client (French, Arabic, English, or Moroccan Darija)\n9. Analyze sentiment to provide personalized responses\n10. If the conversation stalls, ask relevant questions based on previous context\n\nMake responses concise, professional and sales-focused. Always guide the conversation toward collecting client information and confirming their pack selection."
+            "content": "You are an expert marketing consultant representing this business. Your goals are to:\n1. Identify client needs and match them to our products/services\n2. Overcome objections professionally (e.g., if price concerns arise, suggest more affordable alternatives)\n3. Actively sell and recommend our offerings based on client interests\n4. IMPORTANT: Do **not** request the client's personal information (name, email, the offer they like) until they show clear interest in a specific product or service\n5. CRITICAL: Once interest is shown, collect the client’s full name, email address and the offer they want\n6. Then identify and confirm which specific pack/service the client wants to purchase\n7. Create detailed lead information including: client name, email, and selected pack/service\n8. Answer only business-related questions and politely redirect other inquiries\n9. Communicate in the same language as the client (French, Arabic, English, or Moroccan Darija)\n10. Analyze sentiment to provide personalized responses\n11. If the conversation stalls, ask relevant questions based on previous context\n\nMake responses concise, professional and sales-focused. Always guide the conversation toward understanding client needs first, and only collect personal info after they express interest in a product or service."
         }
     ]
 
@@ -140,6 +141,8 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
     1. Client's full name
     2. Client's email address
     3. Selected pack/service name (this is the specific product or service the client wants to purchase)
+    
+    the phone number is already provided, so you don't need to ask for it or  extract it.
 
     Look for explicit mentions like:
     - "My name is [Name]" or "I am [Name]"
@@ -181,9 +184,12 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
         client_data['client_id'] = client_id
         client_data['client_phone'] = client_phone
         client_data['tenant_id'] = tenant_id
+        client_data['client_id'] = Client.get_client_id_from_phone(client_phone)
 
+        print("Hello")
         if client_data['client_name'] and client_data['client_email'] and client_data['pack_name']:
-            order = Order.create_from_ai_extraction(client_data)
+            print("From Inside")
+            order = Order.insert_from_ai_extraction(client_data)
             if order:
                 return client_data
             else:
