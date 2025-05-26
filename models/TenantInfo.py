@@ -36,3 +36,15 @@ class TenantInfo(db.Model):
             # LOGGING
             raise e
         return self.embedding
+
+    @classmethod
+    def get_tenant_information(cls, query_embedding, tenant_id):
+        """Get tenant information."""
+        from models import TenantInfo
+
+        return (
+            db.session.query(TenantInfo)
+            .filter(TenantInfo.tenant_id == tenant_id)
+            .order_by(TenantInfo.embedding.op('<=>')(query_embedding))
+            .all()
+        )
