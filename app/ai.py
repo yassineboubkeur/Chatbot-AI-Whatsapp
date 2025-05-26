@@ -23,7 +23,6 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
     if not question_type:
         question_type = classify_intent(message)
 
-    print(f"Question Type: {question_type}")
     context_info = ""
     if embedding and tenant_id:
         if question_type == 'service':
@@ -187,9 +186,7 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
         client_data['tenant_id'] = tenant_id
         client_data['client_id'] = Client.get_client_id_from_phone(client_phone)
 
-        print(client_data)
         if client_data['client_name'] and client_data['client_email'] and client_data['pack_name']:
-            print("From Inside")
             order = Order.insert_from_ai_extraction(client_data)
             if order:
                 return client_data
