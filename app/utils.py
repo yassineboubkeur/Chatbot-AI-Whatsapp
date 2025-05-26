@@ -7,10 +7,6 @@ from models.tenant import Tenant
 
 from config import WHATSAPP_TOKEN, OPENAI_API_KEY
 
-
-def get_tenant_id(phone):
-    return Tenant.query.filter_by(phone_number=phone).first().id
-
 def transcribe_audio(bytesAudio):
 
     if not bytesAudio:
