@@ -30,3 +30,17 @@ class Service(db.Model):
             # LOGGING
             raise e
         return self.embedding
+
+
+    @classmethod
+    def search_services_by_embedding(cls, query_embedding, tenant_id, limit=3):
+        """Search for products similar to the query embedding."""
+        from models import Service
+
+        return (
+            db.session.query(Service)
+            .filter(Service.tenant_id == tenant_id)
+            .order_by(Service.embedding.op('<=>')(query_embedding))
+            .limit(limit)
+            .all()
+        )
