@@ -15,3 +15,8 @@ class Client(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     orders = db.relationship('Order', backref='orders', lazy=True)
+
+    @classmethod
+    def get_client_id_from_phone(cls, phone_number):
+        client = cls.query.filter_by(phone_number=phone_number).first()
+        return client.id if client else None

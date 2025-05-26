@@ -5,20 +5,18 @@ import os
 import json
 
 from flask import jsonify
+from sqlalchemy.sql.coercions import expect
 
 from app import db
 from app.utils import extract_whatsapp_message
 
 from config import OPENAI_API_KEY
+from models import Client
 from .redis_config import CONVERSATION_MAX_LENGTH
 
 api_key = os.getenv("OPEN_AI_API_KEY")
 
 def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
-
-    # TODO : User message should be embedded  FUNCTION => get_embedding
-    # TODO : We should Classify the question type FUNCTION => classify_intent
-    # TODO : based on the question type we should search for the product or service or general , the Search will be done using the embedding FUNCTION => search_products_by_embedding or search_services_by_embedding
 
     embedding = get_embedding(message)
 
@@ -31,7 +29,16 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
         if question_type == 'service':
             services = search_services_by_embedding(embedding, tenant_id)
             if services:
-                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} {s.periode}" for s in services)
+                context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} DH {s.periode}" for s in services)
+        if question_type == 'product':
+            products = search_products_by_embedding(embedding, tenant_id)
+            if products:
+                # TODO: add the Correct Products to context
+                context_info = "Relevant Products: \n" + "\n".join(f"- {p.name}: {p.description} {p.price} {p.periode}" for p in products)
+        if question_type == 'general':
+            # TODO: tenant information must embbedded in the database
+            tenant_info = get_tenant_information(embedding, tenant_id)
+            context_info = f"Tenant Information: \n" + "\n".join(f"- we are {t.name}, we are in {t.address}{t.city}, this Our mail address {t.email} if you want to call us this is our phone {t.phone_number}" for t in tenant_info)
     user_content = message
     if context_info:
         user_content = f"User question: {message}\n\nContext information (not visible to user):{context_info}"
@@ -89,7 +96,7 @@ def context_memory(client_phone, message=None, tenant_id=None):
     complete_context = [
         {
             "role": "system",
-            "content": "You are a helpful assistant, response with short, clear, direct to the point answer."
+            "content": "You are an expert marketing consultant representing this business. Your goals are to:\n1. Identify client needs and match them to our products/services\n2. Overcome objections professionally (e.g., if price concerns arise, suggest more affordable alternatives)\n3. Actively sell and recommend our offerings based on client interests\n4. IMPORTANT: Do **not** request the client's personal information (name, email, the offer they like) until they show clear interest in a specific product or service\n5. CRITICAL: Once interest is shown, collect the client’s full name, email address and the offer they want\n6. Then identify and confirm which specific pack/service the client wants to purchase\n7. Create detailed lead information including: client name, email, and selected pack/service\n8. Answer only business-related questions and politely redirect other inquiries\n9. Communicate in the same language as the client (French, Arabic, English, or Moroccan Darija)\n10. Analyze sentiment to provide personalized responses\n11. If the conversation stalls, ask relevant questions based on previous context\n\nMake responses concise, professional and sales-focused. Always guide the conversation toward understanding client needs first, and only collect personal info after they express interest in a product or service."
         }
     ]
 
@@ -125,6 +132,76 @@ def get_embedding(text):
         print(">>> Exception while getting embedding: ", {str(e)})
         return None
 
+
+def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, client_id=None):
+    from models import Order
+
+    system_prompt = """
+    Extract the following information from the message if present:
+    1. Client's full name
+    2. Client's email address
+    3. Selected pack/service name (this is the specific product or service the client wants to purchase)
+    
+    the phone number is already provided, so you don't need to ask for it or  extract it.
+
+    Look for explicit mentions like:
+    - "My name is [Name]" or "I am [Name]"
+    - Email addresses that follow standard format
+    - "I want the [Pack Name]" or "I'd like to purchase [Service]"
+
+    Respond ONLY with a JSON object in this exact format:
+    {"client_name": "extracted name or null", "client_email": "extracted email or null", "pack_name": "extracted pack or null"}
+
+    If information is not found, use null for that field. DO NOT explain or add any other text.
+    """
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OPENAI_API_KEY}"
+    }
+
+    payload = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": message
+            }
+        ],
+    }
+
+    try:
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+        ai_response = data['choices'][0]['message']['content'].strip()
+        client_data = json.loads(ai_response)
+
+        client_data['client_id'] = client_id
+        client_data['client_phone'] = client_phone
+        client_data['tenant_id'] = tenant_id
+        client_data['client_id'] = Client.get_client_id_from_phone(client_phone)
+
+        print("Hello")
+        if client_data['client_name'] and client_data['client_email'] and client_data['pack_name']:
+            print("From Inside")
+            order = Order.insert_from_ai_extraction(client_data)
+            if order:
+                return client_data
+            else:
+                print("Failed to create order from AI extraction")
+                return None
+        return client_data
+    except json.JSONDecodeError as e:
+        print(">>> JSON Decode Error: ", str(e))
+        return None
+    except Exception as e:
+        print(">>> Exception while extracting client info: ", str(e))
+        return None
 
 def classify_intent(message):
     """ Classify the intent of the message into 'product', 'service', or 'general' """
@@ -185,5 +262,16 @@ def search_services_by_embedding(query_embedding, tenant_id, limit=3):
         .filter(Service.tenant_id == tenant_id)
         .order_by(Service.embedding.op('<=>')(query_embedding))
         .limit(limit)
+        .all()
+    )
+
+def get_tenant_information(query_embedding, tenant_id):
+    """Get tenant information."""
+    from models import TenantInfo
+
+    return (
+        db.session.query(TenantInfo)
+        .filter(TenantInfo.tenant_id == tenant_id)
+        .order_by(TenantInfo.embedding.op('<=>')(query_embedding))
         .all()
     )
