@@ -13,13 +13,13 @@ class Order(db.Model):
 
 
     @classmethod
-    def create_from_ai_extraction(cls, data):
+    def insert_from_ai_extraction(cls, data):
         try:
             new_order = cls(
-                offre_requested=data.get('offre_requested'),
-                fullname=data.get('fullname'),
-                phone_number=data.get('phone_number'),
-                email=data.get('email'),
+                offre_requested=data.get('pack_name'),
+                fullname=data.get('client_name'),
+                phone_number=data.get('client_phone'),
+                email=data.get('client_email'),
                 client_id=data.get('client_id')
             )
 
