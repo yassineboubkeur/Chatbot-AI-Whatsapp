@@ -4,14 +4,10 @@ import requests
 import os
 import json
 
-from flask import jsonify
-from sqlalchemy.sql.coercions import expect
-
 from app import db
-from app.utils import extract_whatsapp_message
 
 from config import OPENAI_API_KEY
-from models import Client
+from models import Client, TenantInfo, Service, Product
 from .redis_config import CONVERSATION_MAX_LENGTH
 
 api_key = os.getenv("OPEN_AI_API_KEY")
@@ -26,17 +22,17 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
     context_info = ""
     if embedding and tenant_id:
         if question_type == 'service':
-            services = search_services_by_embedding(embedding, tenant_id)
+            services = Service.search_services_by_embedding(embedding, tenant_id)
             if services:
                 context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} DH {s.periode}" for s in services)
         if question_type == 'product':
-            products = search_products_by_embedding(embedding, tenant_id)
+            products = Product.search_products_by_embedding(embedding, tenant_id)
             if products:
                 # TODO: add the Correct Products to context
                 context_info = "Relevant Products: \n" + "\n".join(f"- {p.name}: {p.description} {p.price} {p.periode}" for p in products)
         if question_type == 'general':
             # TODO: tenant information must embbedded in the database
-            tenant_info = get_tenant_information(embedding, tenant_id)
+            tenant_info = TenantInfo.get_tenant_information(embedding, tenant_id)
             context_info = f"Tenant Information: \n" + "\n".join(f"- we are {t.name}, we are in {t.address}{t.city}, this Our mail address {t.email} if you want to call us this is our phone {t.phone_number}" for t in tenant_info)
     user_content = message
     if context_info:
@@ -235,40 +231,3 @@ def classify_intent(message):
     except Exception as e:
         print(">>> Exception while classifying intent: ", {str(e)})
         return None
-
-
-def search_products_by_embedding(query_embedding, tenant_id, limit=3):
-    """Search for products similar to the query embedding."""
-    from models import Product
-
-    return (
-        db.session.query(Product)
-        .filter(Product.tenant_id == tenant_id)
-        .order_by(Product.embedding.op('<=>')(query_embedding))
-        .limit(limit)
-        .all()
-    )
-
-
-def search_services_by_embedding(query_embedding, tenant_id, limit=3):
-    """Search for products similar to the query embedding."""
-    from models import Service
-
-    return (
-        db.session.query(Service)
-        .filter(Service.tenant_id == tenant_id)
-        .order_by(Service.embedding.op('<=>')(query_embedding))
-        .limit(limit)
-        .all()
-    )
-
-def get_tenant_information(query_embedding, tenant_id):
-    """Get tenant information."""
-    from models import TenantInfo
-
-    return (
-        db.session.query(TenantInfo)
-        .filter(TenantInfo.tenant_id == tenant_id)
-        .order_by(TenantInfo.embedding.op('<=>')(query_embedding))
-        .all()
-    )

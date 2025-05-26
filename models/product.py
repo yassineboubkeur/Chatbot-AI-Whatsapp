@@ -13,3 +13,14 @@ class Product(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
 
     embedding = db.Column(VECTOR(1536), nullable=True)
+
+
+    @classmethod
+    def search_products_by_embedding(cls, query_embedding, tenant_id, limit=3):
+        return (
+            db.session.query(Product)
+            .filter(Product.tenant_id == tenant_id)
+            .order_by(Product.embedding.op('<=>')(query_embedding))
+            .limit(limit)
+            .all()
+        )

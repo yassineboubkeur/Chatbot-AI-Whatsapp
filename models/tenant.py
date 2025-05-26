@@ -15,3 +15,8 @@ class Tenant(db.Model):
     clients = db.relationship('Client', backref='clients', lazy=True)
     services = db.relationship('Service', backref='services', lazy=True)
     products = db.relationship('Product', backref='products', lazy=True)
+
+
+    @classmethod
+    def get_tenant_id(cls, phone):
+        return Tenant.query.filter_by(phone_number=phone).first().id

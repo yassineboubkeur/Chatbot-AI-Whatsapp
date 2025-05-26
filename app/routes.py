@@ -1,12 +1,10 @@
-import json
 import os
 
 from flask import Blueprint, request, jsonify
-"""from .whatapp import send_message"""
 from .whatapp import send_message
-from .client import insert_client_data
-from .ai import open_ai_gpt, get_embedding, classify_intent
-from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio, get_tenant_id
+from models import Client, Tenant
+from .ai import open_ai_gpt, classify_intent
+from .utils import extract_whatsapp_message, extract_client_phone, is_audio_message, extract_audio_data, download_whatsapp_media, transcribe_audio
 
 
 main = Blueprint('main', __name__)
@@ -42,11 +40,11 @@ def handle_verification():
 
 def process_whatsapp_message(data, display_phone_number):
     profile_name = data['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name']
-    tenant_id = get_tenant_id(display_phone_number)
+    tenant_id = Tenant.get_tenant_id(display_phone_number)
     client_phone_number = extract_client_phone(data)
 
     try:
-        insert_client_data(client_phone_number, profile_name, tenant_id)
+        Client.insert_client_data(client_phone_number, profile_name, tenant_id)
     except Exception as e:
         # Log the error but continue processing
         print(f"Error inserting client data: {e}")
