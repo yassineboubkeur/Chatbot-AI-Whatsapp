@@ -132,7 +132,6 @@ def get_embedding(text):
         return None
 
 # TODO: FIX the BUG , THE AI EXTRACTION IS NOT WORKING PROPERLY SOMETIMES IT WORKS AND SOMETIMES IT DOES NOT WORK
-
 def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, client_id=None):
     from models import Order
 
