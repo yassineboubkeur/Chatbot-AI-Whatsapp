@@ -137,6 +137,8 @@ def process_audio_message(data, display_phone_number, client_phone_number, tenan
         if not dataText:
             logger.error("Failed to transcribe audio", extra={"media_id": audio_data['id']})
             return jsonify({"status": "error", "message": "Failed to transcribe audio"}), 500
+
+        logger.info("Audio transcribed successfully", extra={"transcribed_text_length": len(dataText), "client_phone": client_phone_number[:6] + '*****'})
     except Exception as e:
         logger.error("Error processing audio message", extra={"error": str(e), "data": data})
         return jsonify({"status": "error", "message": "Internal server error"}), 500
