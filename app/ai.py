@@ -134,8 +134,9 @@ def get_embedding(text):
 
     """ Convert the user message into embedding using OpenAI API """
 
+    logger.info("Getting embedding text")
     if  not OPENAI_API_KEY:
-        print("OpenAI API key not found in environment variables")
+        logger.error("OpenAI API key not found in environment variables")
         return None
 
     headers = {
@@ -149,12 +150,14 @@ def get_embedding(text):
     }
 
     try:
+        logger.debug("Making API request to OpenAI GPT for Embedding")
         response = requests.post("https://api.openai.com/v1/embeddings", headers=headers, json=payload)
         response.raise_for_status()
         data = response.json()
+        logger.info("Successfully received embedding from OpenAI GPT")
         return data['data'][0]['embedding']
     except Exception as e:
-        print(">>> Exception while getting embedding: ", {str(e)})
+        logger.error("Error while making API request to OpenAI GPT for Embedding", extra={"error": str(e)})
         return None
 
 # TODO: FIX the BUG , THE AI EXTRACTION IS NOT WORKING PROPERLY SOMETIMES IT WORKS AND SOMETIMES IT DOES NOT WORK
