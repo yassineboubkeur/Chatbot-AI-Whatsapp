@@ -92,19 +92,31 @@ def context_memory(client_phone, message=None, tenant_id=None):
     from .redis_client import get_conversation, save_conversation
 
     if not tenant_id or not client_phone:
-        print("Tenant ID or Client Phone not found in context_memory function")
+        logger.warning("Missing parameters in Context Memory", extra={"tenant_id": tenant_id, "client_phone": client_phone[:6] + "******" if client_phone else "None"})
         return []
+
+    logger.debug("Getting conversation", extra={
+        "tenant_id": tenant_id,
+        "client_phone": client_phone[:6] + "******" if client_phone else "None"
+    })
 
     conversation = get_conversation(tenant_id, client_phone)
 
     if message:
+        logger.debug("Adding message to conversation", extra={"message_length": len(message)})
         conversation.append(message)
 
-        while len(conversation) > CONVERSATION_MAX_LENGTH:
-            conversation.pop(0)
+        if len(conversation) > CONVERSATION_MAX_LENGTH:
+            logger.debug("Trimming the conversaiton", extra={
+                "conversation_length": len(conversation),
+                "conversation_max_length": CONVERSATION_MAX_LENGTH
+            })
+            while len(conversation) > CONVERSATION_MAX_LENGTH:
+                conversation.pop(0)
 
-
+        logger.debug(f"Saving conversation with {len(conversation)} messages")
         save_conversation(tenant_id, client_phone, conversation)
+
 
     complete_context = [
         {
