@@ -14,7 +14,7 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
     # Mask sensitive identifiers for logging
     masked_phone = mask_identifier(client_phone) if client_phone else None
 
-    logger.debug("Processing AI request", {
+    logger.debug("Processing AI request", extra={
         "client": masked_phone,
         "tenant": tenant_id,
         "question_type": question_type
