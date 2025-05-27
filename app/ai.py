@@ -9,33 +9,48 @@ from app import db
 from config import OPENAI_API_KEY
 from models import Client, TenantInfo, Service, Product
 from .redis_config import CONVERSATION_MAX_LENGTH
+from .log_config import logger
 
 api_key = os.getenv("OPEN_AI_API_KEY")
 
 def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
 
+    logger.info("Processing message for the client", extra={
+        "message": message,
+        "client_phone": client_phone[:6] + "******" ,
+        "question_type": question_type,
+        "tenant_id": tenant_id
+    })
+
     embedding = get_embedding(message)
+    if not embedding:
+        logger.warning("Embedding not found for the message")
 
     if not question_type:
+        logger.debug("Question type not provided, checking if message is a question")
         question_type = classify_intent(message)
+        logger.info("Classified intent as", extra={"question_type": question_type})
 
     context_info = ""
     if embedding and tenant_id:
+        logger.debug("Getting context info for question type", extra={"question_type": question_type})
         if question_type == 'service':
             services = Service.search_services_by_embedding(embedding, tenant_id)
             if services:
+                logger.info("Found relevant services", extra={"services_length": len(services)})
                 context_info = "Relevant Services: \n" + "\n".join(f"- {s.name}: {s.description} {s.price} DH {s.periode}" for s in services)
         if question_type == 'product':
             products = Product.search_products_by_embedding(embedding, tenant_id)
             if products:
-                # TODO: add the Correct Products to context
+                logger.info("Found relevant Products", extra={"product_length": len(products)})
                 context_info = "Relevant Products: \n" + "\n".join(f"- {p.name}: {p.description} {p.price} {p.periode}" for p in products)
         if question_type == 'general':
-            # TODO: tenant information must embbedded in the database
+            logger.info("Found tenant information for tenant ID", extra={"tenant_id": tenant_id})
             tenant_info = TenantInfo.get_tenant_information(embedding, tenant_id)
             context_info = f"Tenant Information: \n" + "\n".join(f"- we are {t.name}, we are in {t.address}{t.city}, this Our mail address {t.email} if you want to call us this is our phone {t.phone_number}" for t in tenant_info)
     user_content = message
     if context_info:
+        logger.debug("User content with context info", extra={"user_content": user_content})
         user_content = f"User question: {message}\n\nContext information (not visible to user):{context_info}"
 
     messages = context_memory(client_phone, {"role": "user", "content": user_content}, tenant_id=tenant_id)
@@ -47,26 +62,29 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
         "Authorization": f"Bearer {api_key}"
     }
 
-    print(messages)
     data = {
         "model": "gpt-3.5-turbo",
         "messages": messages
     }
 
     try:
+        logger.info("Making API request to OpenAI GPT for AI response")
         response = requests.post(url, headers=headers, data=json.dumps(data))
         response.raise_for_status()
         response_data = response.json()
 
         # Extract AI response
         ai_response = response_data['choices'][0]['message']['content']
+        logger.info("AI response received", extra={"ai_response": ai_response})
+        logger.debug("Response Tokens", extra={"response_tokens": response_data['usage']['total_tokens']})
+
 
         # Store the AI response in context memory
         context_memory(client_phone, {"role": "assistant", "content": ai_response}, tenant_id=tenant_id)
 
         return response_data
     except requests.exceptions.RequestException as e:
-        print(">>> Exception while checking if message is a question: ", e)
+        logger.error("Error while making API request to OpenAI GPT", extra={"error": str(e)})
         return None
 
 
