@@ -220,23 +220,28 @@ def extract_whatsapp_message(data):
                 # Get the message type
                 message_type = messages[0].get('type')
 
+                logger.info("Message type extracted successfully", extra={
+                    "message_type": message_type,
+                })
                 # Handle different message types
                 if message_type == 'text' and 'text' in messages[0]:
                     # Extract the text message
-                    return messages[0]['text'].get('body', '')
+                    message_text = messages[0]['text'].get('body', '')
+                    logger.info("Message text extracted successfully", extra={
+                        "message_text_length": len(message_text),
+                    })
+                    return messages
+                # TODO: Handle the Images & Files in the Future
                 elif message_type == 'image':
-                    return '[IMAGE]'  # Or handle image message differently
+                    logger.info("Image message detected")
+                    return '[IMAGE]'
                 elif message_type == 'document':
-                    return '[DOCUMENT]'  # Or handle document message differently
+                    logger.info("Document message detected")
+                    return '[DOCUMENT]'
                 # Add more message types as needed
 
         return None  # Return None if no message found
     except Exception as e:
-        print(f"Error extracting message: {e}")
+        logger.error("Error extracting message text", extra={"error": str(e)})
         return None
-
-
-def format_response(products):
-
-    return 1
 
