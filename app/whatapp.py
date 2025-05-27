@@ -4,9 +4,18 @@ from .log_config import logger
 
 
 
+def mask_identifier(identifier):
+    """
+    Masks the given identifier (e.g., phone number) by showing the first 6 characters
+    and replacing the rest with asterisks. Handles edge cases for short strings.
+    """
+    if len(identifier) <= 6:
+        return identifier + "******"
+    return identifier[:6] + "******"
+
 def extract_client_access_token(phone):
     logger.info("Extracting client access token for phone: ", extra={
-        "phone": phone[:6] + "******"
+        "phone": mask_identifier(phone)
     })
 
     tenantObj = Tenant.query.filter_by(phone_number=phone).first()
