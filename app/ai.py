@@ -250,8 +250,10 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
 
 def classify_intent(message):
     """ Classify the intent of the message into 'product', 'service', or 'general' """
+
+    logger.info("Classifying intent of message")
     if not OPENAI_API_KEY:
-        print("OpenAI API key not found in environment variables")
+        logger.error("OpenAI API key not found in environment variables")
         return None
     headers = {
         "Content-Type": "application/json",
@@ -276,10 +278,14 @@ def classify_intent(message):
 
 
     try:
+        logger.debug("Making API request to OpenAI GPT for intent classification")
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
         response.raise_for_status()
         data = response.json()
+        logger.info("Successfully classified intent of message", extra={
+            "intent": data['choices'][0]['message']['content'].strip()
+        })
         return data['choices'][0]['message']['content'].strip()
     except Exception as e:
-        print(">>> Exception while classifying intent: ", {str(e)})
+        logger.error("Error while making API request to OpenAI GPT for intent classification", extra={"error": str(e)})
         return None
