@@ -164,6 +164,12 @@ def get_embedding(text):
 def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, client_id=None):
     from models import Order
 
+    logger.info("Extracting client info with AI", extra={
+        "message_length": len(message),
+        "client_phone": client_phone[:6] + "******" if client_phone else "None",
+        "tenant_id": tenant_id,
+        "client_id": client_id
+    })
     system_prompt = """
     Extract the following information from the message if present:
     1. Client's full name
@@ -203,11 +209,18 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
     }
 
     try:
+        logger.debug("Making API request to OpenAI GPT for AI extraction")
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
         response.raise_for_status()
         data = response.json()
         ai_response = data['choices'][0]['message']['content'].strip()
+        logger.debug("AI response received", extra={"ai_response_length": len(ai_response)})
+
+
         client_data = json.loads(ai_response)
+        logger.info("Successfully extracted client info from AI", extra={
+            "client_data_len": len(client_data),
+        })
 
         client_data['client_id'] = client_id
         client_data['client_phone'] = client_phone
@@ -215,18 +228,24 @@ def extract_client_info_with_ai(message, client_phone=None, tenant_id=None, clie
         client_data['client_id'] = Client.get_client_id_from_phone(client_phone)
 
         if client_data['client_name'] and client_data['client_email'] and client_data['pack_name']:
+            logger.info("Client info extracted from AI", extra={
+                "client_name": client_data['client_name'],
+                "client_email": client_data['client_email'],
+                "pack_name": client_data['pack_name']
+            })
             order = Order.insert_from_ai_extraction(client_data)
             if order:
+                logger.info("Successfully created order from AI extraction")
                 return client_data
             else:
-                print("Failed to create order from AI extraction")
+                logger.error("Failed to create order from AI extraction")
                 return None
         return client_data
     except json.JSONDecodeError as e:
-        print(">>> JSON Decode Error: ", str(e))
+        logger.error("Error while parsing AI response as JSON", extra={"error": str(e)})
         return None
     except Exception as e:
-        print(">>> Exception while extracting client info: ", str(e))
+        logger.error("Error while making API request to OpenAI GPT for AI extraction", extra={"error": str(e)})
         return None
 
 def classify_intent(message):
