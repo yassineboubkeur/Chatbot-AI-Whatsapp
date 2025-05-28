@@ -1,6 +1,7 @@
 import requests
 import os
 import json
+import time
 
 from config import OPENAI_API_KEY
 from models import Client, TenantInfo, Service, Product
@@ -120,7 +121,7 @@ def open_ai_gpt(message, client_phone=None, question_type=None, tenant_id=None):
                 "error_type": error_data.get('error', {}).get('type', 'unknown'),
                 "error_code": error_data.get('error', {}).get('code', 'unknown')
             }
-        except:
+        except: # TODO: set specific exception type here
             pass
 
         logger.error("OpenAI API error", {
