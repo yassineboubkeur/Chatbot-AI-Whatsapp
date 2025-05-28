@@ -1,5 +1,3 @@
-from enum import unique
-
 from app import db
 from pgvector.sqlalchemy import VECTOR
 from config import OPENAI_API_KEY
@@ -7,6 +5,7 @@ from openai import OpenAI
 
 
 class TenantInfo(db.Model):
+    """Tenant Information Model."""
     __tablename__ = 'tenant_info'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
